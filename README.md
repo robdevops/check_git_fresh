@@ -37,5 +37,4 @@ Usage: check_git_fresh -r <REPO PATH> [ -f <FILE PREFIX> ] [ -a <FILE AGE SECOND
 `Warning: /home/rob/check_git_fresh/check_git_fresh is only 123 bytes.`
 
 ## Example OK output
-`OK: latest file /home/rob/check_git_fresh/check_git_fresh is 200 seconds old and 2539 bytes
-`
+`OK: latest file /home/rob/check_git_fresh/check_git_fresh is 200 seconds old and 2539 bytes`
