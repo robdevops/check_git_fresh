@@ -21,10 +21,10 @@ Usage: check_git_fresh -r <REPO PATH> [ -f <FILE PREFIX> ] [ -a <FILE AGE SECOND
 
 ## Example warning output
 
-### Untracked change, or tracked but not commited
+### Untracked change, or tracked but not committed
 `Warning: 1 uncommitted change`
 
-### Change commited but not pushed
+### Change committed but not pushed
 `Warning: 1 unpushed commit`
 
 ### Remote ahead
