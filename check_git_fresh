@@ -5,11 +5,13 @@ set -euo pipefail
 parse_args() {
 	FILE_PREFIX=""
 	FILE_AGE=""
-	while getopts ":ha:r:f:" opt; do
+	FILE_SIZE=""
+	while getopts ":ha:r:f:s:" opt; do
 		case $opt in
 		  r  ) REPO_PATH=$OPTARG ;;
 		  f  ) FILE_PREFIX=$OPTARG ;;
 		  a  ) FILE_AGE=$OPTARG ;;
+		  s  ) FILE_SIZE=$OPTARG ;;
 		  :  ) echo "Option -$OPTARG requires an argument." && exit 3 ;;
 		  \? ) echo "Invalid option: -$OPTARG" && exit 3 ;;
 		  h  ) usage ;;
@@ -19,7 +21,7 @@ parse_args() {
 }
 
 usage() {
-	echo "Usage: ${0##*/} -r <REPO PATH> [ -f <FILE PREFIX> ] [ -a <FILE AGE SECONDS> ]"
+	echo "Usage: ${0##*/} -r <REPO PATH> [ -f <FILE PREFIX> ] [ -a <FILE AGE SECONDS> ] [ -s <FILE SIZE IN BYTES> ]"
 	exit 3
 }
 
@@ -80,6 +82,10 @@ check_latest_file() {
 	read -r time_file size_file name_file <<<$(stat -c '%Z %s %n' $REPO_PATH/$FILE_PREFIX* | sort -n | tail -1)
 	local time_now=$(date +%s)
 	time_diff=$(( $time_now - $time_file ))
+	if [[ -n $FILE_SIZE ]] && [[ $size_file -lt $FILE_SIZE ]]; then
+		echo "Warning: $name_file is only $size_file bytes."
+		return 1
+	fi
 	if [[ -n $FILE_AGE ]] && [[ $time_diff -gt $FILE_AGE ]]; then
 		echo "Warning: Files matching ${FILE_PREFIX}* are at least $time_diff seconds old."
 		return 1
