@@ -1,0 +1,96 @@
+#!/bin/bash
+
+set -euo pipefail
+
+parse_args() {
+	FILE_PREFIX=""
+	FILE_AGE=""
+	while getopts ":ha:r:f:" opt; do
+		case $opt in
+		  r  ) REPO_PATH=$OPTARG ;;
+		  f  ) FILE_PREFIX=$OPTARG ;;
+		  a  ) FILE_AGE=$OPTARG ;;
+		  :  ) echo "Option -$OPTARG requires an argument." && exit 3 ;;
+		  \? ) echo "Invalid option: -$OPTARG" && exit 3 ;;
+		  h  ) usage ;;
+		esac
+	done
+	[[ -v REPO_PATH ]] || usage
+}
+
+usage() {
+	echo "Usage: ${0##*/} -r <REPO PATH> [ -f <FILE PREFIX> ] [ -a <FILE AGE SECONDS> ]"
+	exit 3
+}
+
+pluralise() {
+	set +u
+	[[ -z $1 ]] && echo "error: ${FUNCNAME[0]} requires an argument" && return 1
+	set -u
+	[[ $1 -gt 1 ]] && echo s
+}
+
+check_repo_path() {
+	if [[ ! -d $REPO_PATH/.git ]]; then
+		echo "Error: $REPO_PATH is not a git repo"
+		return 3
+	fi
+}
+
+check_file_exist() {
+	[[ -z $FILE_PREFIX ]] && return
+	if ! $(ls $REPO_PATH/$FILE_PREFIX* &>/dev/null); then
+		echo "Error: Can't find $FILE_PREFIX* in git repo $REPO_PATH"
+		return 3
+	fi
+}
+
+check_uncommitted_changes() {
+	#[[ -z $FILE_PREFIX ]] && return # no untracked files
+	cd $REPO_PATH
+	local count=$(git status --porcelain ${FILE_PREFIX}* | wc -l)
+	if [[ $count -gt 0 ]]; then
+		echo "Warning: $count uncommitted change$(pluralise $count)"
+		return 1
+	fi
+}
+
+check_unpushed_commits() {
+	cd $REPO_PATH
+	local branch=$(git branch --show-current)
+	local count=$(git log origin/$branch..$branch ${FILE_PREFIX}* | grep -c ^'commit ')
+	if [[ $count -gt 0 ]]; then
+		echo "Warning: $count unpushed commit$(pluralise $count)"
+		return 1
+	fi
+}
+
+check_remote() {
+	cd $REPO_PATH
+	git fetch -q
+	local status=$(git status -u no | grep 'Your branch is behind')
+	if [[ -n $status ]]; then
+		echo "Warning: $status"
+		return 1
+	fi
+}
+
+check_latest_file() {
+	local 
+	read -r time_file size_file name_file <<<$(stat -c '%Z %s %n' $REPO_PATH/$FILE_PREFIX* | sort -n | tail -1)
+	local time_now=$(date +%s)
+	time_diff=$(( $time_now - $time_file ))
+	if [[ -n $FILE_AGE ]] && [[ $time_diff -gt $FILE_AGE ]]; then
+		echo "Warning: Files matching ${FILE_PREFIX}* are at least $time_diff seconds old."
+		return 1
+	fi
+}
+
+parse_args $@
+check_repo_path || exit 3
+check_file_exist || exit 3
+check_uncommitted_changes || exit 1
+check_unpushed_commits || exit 1
+check_remote || exit 1
+check_latest_file || exit 1
+echo "OK: latest file $name_file is $time_diff seconds old and $size_file bytes"
